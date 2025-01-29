@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modelo Teachable Machine</title>
     <!-- Cargar TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <!-- Cargar Teachable Machine -->
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <!-- Cargar Teachable Machine (versión corregida) -->
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
         video { width: 300px; border: 2px solid black; }
@@ -29,19 +29,25 @@
                 model = await tmImage.load(URL + "model.json", URL + "metadata.json");
                 maxPredictions = model.getTotalClasses();
 
-                // Acceder a la cámara
-                webcam = document.createElement("video");
-                document.body.appendChild(webcam);
-
+                // Acceder a la cámara usando el elemento existente
+                webcam = document.getElementById('webcam');
+                
                 // Iniciar la cámara
-                navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-                    webcam.srcObject = stream;
-                    webcam.play();
-                    predict();
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                webcam.srcObject = stream;
+                
+                // Esperar a que la cámara esté lista
+                await new Promise((resolve) => {
+                    webcam.onloadedmetadata = () => {
+                        webcam.play();
+                        resolve();
+                    };
                 });
+                
+                predict();
             } catch (error) {
-                console.error("Error cargando el modelo:", error);
-                document.getElementById("result").innerText = "Error cargando el modelo.";
+                console.error("Error:", error);
+                document.getElementById("result").innerText = "Error: " + error.message;
             }
         }
 
@@ -53,7 +59,7 @@
                     resultText += `${prediction[i].className}: ${Math.round(prediction[i].probability * 100)}%\n`;
                 }
                 document.getElementById("result").innerText = resultText;
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await tf.nextFrame();
             }
         }
 
