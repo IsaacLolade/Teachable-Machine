@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo de Teachable Machine</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
+</head>
+<body>
+    <h1>Teachable Machine en GitHub Pages</h1>
+    <video id="webcam" autoplay></video>
+    <p id="result">Esperando predicción...</p>
+    
+    <script>
+        const URL = "https://isaaclolade.github.io/Teachable-Machine/model/";
+
+        let model, webcam;
+
+        async function loadModel() {
+            model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+            webcam = document.getElementById("webcam");
+            
+            // Acceder a la cámara
+            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                webcam.srcObject = stream;
+                predict();
+            });
+        }
+
+        async function predict() {
+            while (true) {
+                const prediction = await model.predict(webcam);
+                document.getElementById("result").innerText = prediction[0].className + ": " + Math.round(prediction[0].probability * 100) + "%";
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        loadModel();
+    </script>
+</body>
+</html>
