@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modelo de Teachable Machine</title>
-    <!-- Cargar TensorFlow.js y Teachable Machine -->
+    <!-- Cargar TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
+    <!-- Cargar Teachable Machine (versión específica para navegador) -->
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@1.0.0/dist/teachablemachine.js"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
         video { width: 300px; border: 2px solid black; }
@@ -24,7 +25,7 @@
 
         async function init() {
             try {
-                // Cargar el modelo
+                // Cargar el modelo de Teachable Machine
                 model = await tmImage.load(URL + "model.json", URL + "metadata.json");
                 maxPredictions = model.getTotalClasses();
 
@@ -32,6 +33,7 @@
                 webcam = document.createElement("video");
                 document.body.appendChild(webcam);
 
+                // Iniciar la cámara
                 navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
                     webcam.srcObject = stream;
                     webcam.play();
@@ -55,7 +57,6 @@
             }
         }
 
-        // Inicializar el modelo y la cámara
         init();
     </script>
 </body>
