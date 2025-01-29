@@ -4,39 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modelo de Teachable Machine</title>
+    <!-- Cargar TensorFlow.js y Teachable Machine -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        video { width: 300px; border: 2px solid black; }
+    </style>
 </head>
 <body>
     <h1>Teachable Machine en GitHub Pages</h1>
-    <video id="webcam" autoplay></video>
+    <video id="webcam" autoplay playsinline></video>
     <p id="result">Esperando predicción...</p>
-    
+
     <script>
         const URL = "https://isaaclolade.github.io/Teachable-Machine/model/";
 
-        let model, webcam;
+        let model, webcam, maxPredictions;
 
-        async function loadModel() {
-            model = await tmImage.load(URL + "model.json", URL + "metadata.json");
-            webcam = document.getElementById("webcam");
-            
-            // Acceder a la cámara
-            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-                webcam.srcObject = stream;
-                predict();
-            });
+        async function init() {
+            try {
+                // Cargar el modelo
+                model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+                maxPredictions = model.getTotalClasses();
+
+                // Acceder a la cámara
+                webcam = document.createElement("video");
+                document.body.appendChild(webcam);
+
+                navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                    webcam.srcObject = stream;
+                    webcam.play();
+                    predict();
+                });
+            } catch (error) {
+                console.error("Error cargando el modelo:", error);
+                document.getElementById("result").innerText = "Error cargando el modelo.";
+            }
         }
 
         async function predict() {
             while (true) {
                 const prediction = await model.predict(webcam);
-                document.getElementById("result").innerText = prediction[0].className + ": " + Math.round(prediction[0].probability * 100) + "%";
+                let resultText = "";
+                for (let i = 0; i < maxPredictions; i++) {
+                    resultText += `${prediction[i].className}: ${Math.round(prediction[i].probability * 100)}%\n`;
+                }
+                document.getElementById("result").innerText = resultText;
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
         }
 
-        loadModel();
+        // Inicializar el modelo y la cámara
+        init();
     </script>
 </body>
 </html>
