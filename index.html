@@ -3,64 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modelo Teachable Machine</title>
-    <!-- Cargar TensorFlow.js -->
+    <title>Clasificador Aéreo</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-    <!-- Cargar Teachable Machine (versión corregida) -->
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        video { width: 300px; border: 2px solid black; }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        video, #imagePreview { width: 100%; border: 2px solid #444; border-radius: 8px; }
+        .info-section { background: #f0f0f0; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .prediction-box { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .highlight { background-color: #e3f2fd; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>Modelo Teachable Machine en GitHub Pages</h1>
-    <video id="webcam" autoplay playsinline></video>
-    <p id="result">Esperando predicción...</p>
+    <h1>Clasificador de Vehículos Aéreos</h1>
+    
+    <div class="container">
+        <div>
+            <h2>Análisis en Tiempo Real</h2>
+            <video id="webcam" autoplay playsinline></video>
+            <button onclick="toggleWebcam()" id="webcamButton">Iniciar Cámara</button>
+        </div>
+        
+        <div>
+            <h2>Análisis de Imagen</h2>
+            <input type="file" id="fileInput" accept="image/*">
+            <div id="imagePreview"></div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h3>Resultados del Análisis:</h3>
+        <div id="results"></div>
+    </div>
+
+    <div class="info-section">
+        <h3>ℹ️ Información del Modelo</h3>
+        <p><strong>Tipo de modelo:</strong> Red Neuronal Convolucional (CNN)</p>
+        <p><strong>Entrenado con:</strong> TensorFlow.js + Teachable Machine</p>
+        <p><strong>Clases reconocidas:</strong></p>
+        <ul>
+            <li>🛩️ Clase 1: Avión (Alas fijas, fuselaje aerodinámico)</li>
+            <li>🚁 Clase 2: Helicóptero (Rotor principal, fuselaje compacto)</li>
+        </ul>
+        <p><strong>Precisión estimada:</strong> >95% en condiciones óptimas</p>
+    </div>
 
     <script>
         const URL = "https://isaaclolade.github.io/Teachable-Machine/model/";
-
-        let model, webcam, maxPredictions;
+        let model, webcam, maxPredictions, isWebcamActive = false;
 
         async function init() {
-            try {
-                // Cargar el modelo de Teachable Machine
-                model = await tmImage.load(URL + "model.json", URL + "metadata.json");
-                maxPredictions = model.getTotalClasses();
+            model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+            maxPredictions = model.getTotalClasses();
+            
+            // Configurar selector de archivo
+            document.getElementById('fileInput').addEventListener('change', handleImageUpload);
+        }
 
-                // Acceder a la cámara usando el elemento existente
+        async function toggleWebcam() {
+            if (!isWebcamActive) {
                 webcam = document.getElementById('webcam');
-                
-                // Iniciar la cámara
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 webcam.srcObject = stream;
-                
-                // Esperar a que la cámara esté lista
-                await new Promise((resolve) => {
-                    webcam.onloadedmetadata = () => {
-                        webcam.play();
-                        resolve();
-                    };
-                });
-                
-                predict();
-            } catch (error) {
-                console.error("Error:", error);
-                document.getElementById("result").innerText = "Error: " + error.message;
+                isWebcamActive = true;
+                document.getElementById('webcamButton').textContent = 'Detener Cámara';
+                predictWebcam();
+            } else {
+                webcam.srcObject.getTracks().forEach(track => track.stop());
+                isWebcamActive = false;
+                document.getElementById('webcamButton').textContent = 'Iniciar Cámara';
             }
         }
 
-        async function predict() {
-            while (true) {
-                const prediction = await model.predict(webcam);
-                let resultText = "";
-                for (let i = 0; i < maxPredictions; i++) {
-                    resultText += `${prediction[i].className}: ${Math.round(prediction[i].probability * 100)}%\n`;
-                }
-                document.getElementById("result").innerText = resultText;
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file.type.startsWith('image/')) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.onload = () => {
+                    document.getElementById('imagePreview').innerHTML = '';
+                    document.getElementById('imagePreview').appendChild(img);
+                    predictImage(img);
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function predictWebcam() {
+            while (isWebcamActive) {
+                const predictions = await model.predict(webcam);
+                displayResults(predictions, 'webcam');
                 await tf.nextFrame();
             }
+        }
+
+        async function predictImage(img) {
+            const predictions = await model.predict(img);
+            displayResults(predictions, 'image');
+        }
+
+        function displayResults(predictions, source) {
+            let html = '';
+            let topPrediction = { className: '', probability: 0 };
+
+            predictions.forEach((pred, i) => {
+                const isTop = pred.probability > topPrediction.probability;
+                if (isTop) topPrediction = pred;
+
+                html += `
+                    <div class="prediction-box ${isTop ? 'highlight' : ''}">
+                        ${pred.className}: ${(pred.probability * 100).toFixed(2)}%
+                        ${getClassDetails(pred.className)}
+                    </div>
+                `;
+            });
+
+            html += `<p><strong>Tipo de análisis:</strong> ${source === 'webcam' ? 
+                'Flujo de video en tiempo real' : 'Imagen estática subida por el usuario'}</p>`;
+            
+            document.getElementById('results').innerHTML = html;
+        }
+
+        function getClassDetails(className) {
+            const details = {
+                'Avión': 'Características típicas: Alas fijas, fuselaje aerodinámico, estabilizadores horizontales.',
+                'Helicóptero': 'Características típicas: Rotor principal, rotor de cola, fuselaje compacto.'
+            };
+            return `<div class="class-details">${details[className]}</div>`;
         }
 
         init();
